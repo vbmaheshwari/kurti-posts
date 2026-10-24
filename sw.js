@@ -1,6 +1,6 @@
 // Kurti Post Maker service worker. It only handles addresses inside its own folder,
 // so the rest of the website is never touched.
-const CACHE = 'kurti-app-v1';
+const CACHE = 'kurti-app-v2';
 const SHARED = 'kurti-shared';
 const FILES = ['./', './index.html', './jszip.min.js', './manifest.json', './icon-192.png', './icon-512.png'];
 const BASE = new URL('./', self.location).pathname;
