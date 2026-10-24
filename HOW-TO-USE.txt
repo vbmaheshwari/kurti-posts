@@ -1,0 +1,56 @@
+KURTI POST MAKER
+================
+Free. No second number. No login to WhatsApp. No ban risk.
+You share the vendor's catalogue in, check it, and send it to your buyer groups
+yourself through WhatsApp.
+
+
+PART 1: PUT IT ON YOUR PHONE (one time, about 10 minutes, free)
+---------------------------------------------------------------
+The phone needs the app at a web address so it can appear in WhatsApp's Share menu.
+GitHub Pages hosts it free. It is separate from pickupdvmtechsolves.com and does
+not touch it.
+
+ 1. On your laptop, go to github.com and sign up (free).
+ 2. Click "+" (top right) > New repository.
+    Name: kurti-posts     Choose: Public     Click "Create repository".
+ 3. Click "uploading an existing file". Drag in ALL the files from this folder
+    (index.html, manifest.json, sw.js, jszip.min.js, icon-192.png, icon-512.png).
+    Click "Commit changes".
+ 4. Click Settings (in the repository) > Pages.
+    Source: Deploy from a branch. Branch: main, folder: / (root). Click Save.
+ 5. Wait 1 to 2 minutes and refresh. It shows your address, like:
+       https://YOUR-NAME.github.io/kurti-posts/
+ 6. On your Android phone, open that address in Chrome.
+    Tap the three dots > Add to Home screen > Install.
+
+"Kurti Posts" is now an app on your phone and appears in WhatsApp's Share list.
+Your designs, settings and codes stay on your phone, not on GitHub.
+
+
+PART 2: DAILY USE ON THE PHONE
+------------------------------
+Bring a catalogue in (pick one):
+  - Whole vendor chat: open it > three dots > More > Export chat > Include media >
+    Kurti Posts. Every catalogue in the chat shows as a card. Tap one.
+  - One catalogue: long-press the vendor's photos > Share > Kurti Posts.
+    Then copy their text in WhatsApp and tap "Paste copied text".
+
+Then:
+  1. Check the details found. Change anything that is wrong.
+  2. Set your rate. Tap photos to leave any out.
+  3. Tick "Rate approved" and "Photos approved".
+  4. Tap "Share to WhatsApp" > WhatsApp > tick your buyer groups (up to 5 at a
+     time) > Send. Photos and the post go together.
+  5. Tap "Next design".
+
+
+ON THE LAPTOP (optional)
+------------------------
+Double-click index.html. Drag the exported zip, photos or the vendor's text onto
+the page. Add your groups in Settings to get a "Send to <group>" button for each.
+
+
+CHANGE THINGS
+-------------
+Settings at the bottom of the app: margin, code prefix, post format, keywords.
