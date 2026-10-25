@@ -506,7 +506,7 @@ function renderPost(){
 }
 function renderPhotos(){
   $('#photos').innerHTML=photos.map((p,i)=>`<button type="button" class="ph${p.on?' on':''}" data-i="${i}" aria-pressed="${p.on}" aria-label="${p.type==='video'?'Video':'Photo'} ${i+1}">${
-    p.type==='video'?`<video src="${p.url}" muted playsinline preload="metadata"></video><span class="play">▶ VIDEO</span>`:`<img src="${p.url}" alt="">`
+    p.type==='video'?`<video src="${p.url}" muted playsinline preload="metadata" onerror="fixImg(this)"></video><span class="play">▶ VIDEO</span>`:`<img src="${p.url}" alt="" onerror="fixImg(this)">`
   }<span class="tick">${p.on?'✓':''}</span></button>`).join('');
   const sel=photos.filter(p=>p.on); $('#phCount').textContent=`${sel.length} of ${photos.length} selected`;
   const named=sel.filter(p=>p.name);
@@ -551,8 +551,8 @@ async function toJpeg(blob){
   }catch(e){return blob}
 }
 async function photoEntry(blob,name,isVid){
-  if(isVid)return{url:URL.createObjectURL(blob),on:true,type:'video',name};
-  const j=await toJpeg(blob); return{url:URL.createObjectURL(j),on:true,type:'image',name:jpgName(name)};
+  if(isVid)return{url:URL.createObjectURL(blob),blob,on:true,type:'video',name};
+  const j=await toJpeg(blob); return{url:URL.createObjectURL(j),blob:j,on:true,type:'image',name:jpgName(name)};
 }
 async function keepMedia(names){
   let kept=0;
@@ -560,12 +560,15 @@ async function keepMedia(names){
     const src=media.get(name.toLowerCase()); if(!src)continue;
     try{let blob=src.async?await src.async('blob'):src; blob=new Blob([blob],{type:MIME[extOf(name)]||blob.type});
       if(isVideo(name)){if(blob.size>40e6)continue}else blob=await shrinkImage(blob);
-      await idb.put(name.toLowerCase(),blob,'media'); kept++}catch(e){}
+      await idb.put(name.toLowerCase(),{t:blob.type,b:await blob.arrayBuffer()},'media'); kept++}catch(e){}
   }
   return kept;
 }
 function forgetMedia(b){if(b&&b.media&&b.media.length)idb.del(b.media.map(n=>n.toLowerCase())).catch(()=>{})}
-async function getMedia(name){const k=name.toLowerCase();if(media.has(k)){const s=media.get(k);return s.async?await s.async('blob'):s}try{return await idb.get(k,'media')}catch(e){return null}}
+async function getMedia(name){const k=name.toLowerCase();if(media.has(k)){const s=media.get(k);return s.async?await s.async('blob'):s}try{const v=await idb.get(k,'media');if(!v)return null;if(v.b)return new Blob([v.b],{type:v.t||MIME[extOf(name)]||'image/jpeg'});return new Blob([await v.arrayBuffer()],{type:v.type})}catch(e){return null}}
+/* if a photo can't be shown from memory, show it from its own data instead */
+function fixImg(el){const i=+el.closest('.ph').dataset.i,p=photos[i];if(!p||!p.blob||p.fixed){el.alt='Photo could not be read';return}p.fixed=true;
+  const r=new FileReader();r.onload=()=>{p.url=r.result;el.src=r.result};r.onerror=()=>{el.alt='Photo could not be read'};r.readAsDataURL(p.blob)}
 function loadMedia(p){return new Promise((res,rej)=>{
   if(p.type==='video'){const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=p.url;
     const t=setTimeout(()=>rej(new Error('video timeout')),6000);
@@ -885,7 +888,7 @@ $('#shareWa').onclick=async()=>{
   try{navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
   try{
     const sel=photos.filter(p=>p.on);
-    const files=await Promise.all(sel.map(async(p,i)=>{const b=await (await fetch(p.url)).blob();
+    const files=await Promise.all(sel.map(async(p,i)=>{const b=p.blob||await (await fetch(p.url)).blob();
       const ext=p.name&&p.name.includes('.')?'':(b.type.includes('video')?'.mp4':'.jpg');
       return new File([b],p.name||`${code()}-${i+1}${ext}`,{type:b.type})}));
     if(files.length&&navigator.canShare({files}))await navigator.share({files,text});
