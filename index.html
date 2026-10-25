@@ -99,6 +99,12 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-
 th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .tag{font-size:.75rem;font-weight:600;color:var(--madder);background:var(--madder-soft);padding:1px 8px;border-radius:999px}
 .importer{margin-bottom:20px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 18px;border-bottom:1px solid var(--line)}
+.tabs button{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;color:var(--muted);padding:10px 14px;font-size:1rem}
+.tabs button[aria-selected="true"]{color:var(--indigo);border-bottom-color:var(--indigo)}
+.tabcount{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.addvend{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+[data-in]:not(.shown){display:none!important}
 #vendTable input{min-width:130px;padding:4px 8px}
 #vendTable td{vertical-align:middle}
 .teach{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:8px}
@@ -143,14 +149,21 @@ th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     </div>
   </header>
 
-  <ol class="steps">
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" data-tab="make" aria-selected="true">Make posts</button>
+    <button type="button" role="tab" data-tab="vendors" aria-selected="false">Vendors <span class="tabcount" id="vendTabCount"></span></button>
+    <button type="button" role="tab" data-tab="posted" aria-selected="false">Posted designs <span class="tabcount" id="histTabCount"></span></button>
+    <button type="button" role="tab" data-tab="settings" aria-selected="false">Settings</button>
+  </nav>
+
+  <ol class="steps" data-in="make">
     <li><b>1</b> Import a WhatsApp chat or paste a message</li>
     <li><b>2</b> Check the details it found</li>
     <li><b>3</b> Approve rate and photos</li>
     <li><b>4</b> Copy post, send to buyer group</li>
   </ol>
 
-  <section class="panel importer" aria-labelledby="h-imp">
+  <section class="panel importer" aria-labelledby="h-imp" data-in="make">
     <h2 id="h-imp">Import from WhatsApp <small>text, photos and videos together</small></h2>
     <ol class="how">
       <li><b>Whole vendor chat, on your phone:</b> open it in WhatsApp, tap <b>⋮ &gt; More &gt; Export chat &gt; Include media</b> and pick <b>Kurti Posts</b>. Every catalogue appears below as a card.</li>
@@ -171,12 +184,12 @@ th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     <div class="batches" id="batches" hidden></div>
   </section>
 
-  <div class="grid">
+  <div class="grid" data-in="make">
     <!-- LEFT: supplier side -->
     <section class="panel" aria-labelledby="h-in">
       <h2 id="h-in">Supplier message <small id="sampleTag"><span class="tag">Example loaded</span></small></h2>
       <div class="row">
-        <div class="field"><label for="supplier">Supplier name (private)</label><input id="supplier" placeholder="e.g. Gulmohar Crafts"></div>
+        <div class="field"><label for="supplier">Supplier name (private)</label><input id="supplier" list="vendList" placeholder="e.g. Gulmohar Crafts"><datalist id="vendList"></datalist></div>
       </div>
       <div class="field">
         <label for="msg">Paste message here</label>
@@ -256,7 +269,7 @@ th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     </section>
   </div>
 
-  <details id="histBox" open>
+  <details id="histBox" open data-in="posted">
     <summary>Posted designs <span id="histCount" class="mono"></span></summary>
     <div class="inner">
       <div class="tablewrap"><table id="hist"><thead><tr><th>Code</th><th>Date</th><th>Supplier</th><th>Type</th><th>Fabric</th><th>Supplier ₹</th><th>Selling ₹</th><th>Photos</th></tr></thead><tbody></tbody></table></div>
@@ -269,15 +282,25 @@ th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     </div>
   </details>
 
-  <details id="vendBox">
+  <details id="vendBox" open data-in="vendors">
     <summary>Vendors <span id="vendCount" class="mono"></span></summary>
     <div class="inner">
+      <div class="addvend">
+        <h2>Add a vendor</h2>
+        <div class="row">
+          <div class="field" style="flex:2 1 200px"><label for="vName">Name, as it shows in WhatsApp</label><input id="vName" placeholder="e.g. Gulmohar Crafts"></div>
+          <div class="field"><label for="vPhone">WhatsApp number</label><input id="vPhone" inputmode="tel" placeholder="+91..."></div>
+          <div class="field"><label for="vArea">Area / city</label><input id="vArea" placeholder="e.g. Sanganer, Jaipur"></div>
+          <div class="field" style="flex:2 1 200px"><label for="vNotes">Notes</label><input id="vNotes" placeholder="MOQ, payment terms, speciality..."></div>
+          <button type="button" class="primary" id="vAdd" style="flex:0 0 auto">Save vendor</button>
+        </div>
+      </div>
       <p class="note">Every vendor you import is saved here. The app remembers the last message it read from each vendor, so the next import only picks up their newer messages and photos. Their number and area also go into your Excel.</p>
       <div class="tablewrap"><table id="vendTable"><thead><tr><th>Vendor</th><th>WhatsApp number</th><th>Area / city</th><th>Notes</th><th>Read up to</th><th>New</th><th>Posted</th><th></th></tr></thead><tbody></tbody></table></div>
     </div>
   </details>
 
-  <details>
+  <details id="setBox" open data-in="settings">
     <summary>Settings: code, margin, post format, keywords</summary>
     <div class="inner">
       <div class="row">
@@ -593,7 +616,7 @@ async function thumbOf(p,w=300){
 /* ---------- history ---------- */
 function hist(){return store.get('history',[])}
 function renderHist(){
-  const h=hist(); $('#histCount').textContent=h.length?`(${h.length})`:'';
+  const h=hist(); $('#histCount').textContent=h.length?`(${h.length})`:''; $('#histTabCount').textContent=h.length?`(${h.length})`:'';
   $('#hist tbody').innerHTML=h.length?h.slice().reverse().map(r=>`<tr><td class="mono">${r.code}</td><td>${r.date}</td><td>${htmlEsc(r.supplier||'-')}</td><td>${htmlEsc(r.type||'-')}</td><td>${htmlEsc(r.fabric||'-')}</td><td>${r.sRate||'-'}</td><td>${r.price||'-'}</td><td>${r.photos||0}</td></tr>`).join(''):
     '<tr><td colspan="8" style="color:var(--muted);white-space:normal">Designs you post are listed here with supplier, rates and photos, ready for Excel.</td></tr>';
 }
@@ -627,12 +650,26 @@ function renderVendors(){
       <td><input data-v="${htmlEsc(n)}" data-f="area" value="${htmlEsc(v.area||'')}" placeholder="e.g. Sanganer" aria-label="Area for ${htmlEsc(n)}"></td>
       <td><input data-v="${htmlEsc(n)}" data-f="notes" value="${htmlEsc(v.notes||'')}" placeholder="MOQ, payment terms..." aria-label="Notes for ${htmlEsc(n)}"></td>
       <td class="mono">${htmlEsc(v.lastDate||'-')}</td><td>${nw}</td><td>${po}</td>
-      <td><button type="button" class="mini" data-reread="${htmlEsc(n)}">Read all again</button></td></tr>`}).join(''):
-    '<tr><td colspan="8" style="color:var(--muted);white-space:normal">Vendors appear here automatically after you import their chat.</td></tr>';
+      <td><button type="button" class="mini" data-reread="${htmlEsc(n)}">Read all again</button> <button type="button" class="mini" data-remove="${htmlEsc(n)}">Remove</button></td></tr>`}).join(''):
+    '<tr><td colspan="8" style="color:var(--muted);white-space:normal">No vendors yet. Add one above, or import a vendor chat and they are added automatically.</td></tr>';
+  $('#vendList').innerHTML=names.map(n=>`<option value="${htmlEsc(n)}"></option>`).join('');
+  $('#vendTabCount').textContent=names.length?`(${names.length})`:'';
 }
+$('#vAdd').onclick=()=>{
+  const n=$('#vName').value.trim(); if(!n){toast('Type the vendor name first.');$('#vName').focus();return}
+  const V=vends(); const isNew=!V[n]; V[n]=Object.assign({phone:'',area:'',notes:'',added:Date.now()},V[n]||{});
+  ['phone','area','notes'].forEach(f=>{const v=$('#v'+f[0].toUpperCase()+f.slice(1)).value.trim();if(v||isNew)V[n][f]=v});
+  saveVends(V); ['vName','vPhone','vArea','vNotes'].forEach(id=>$('#'+id).value=''); renderVendors();
+  toast(isNew?`${n} added to your vendors.`:`${n} updated.`);
+};
+let removeArmed=null;
 $('#vendTable').addEventListener('change',e=>{const i=e.target.closest('input[data-v]');if(!i)return;const V=vends();if(!V[i.dataset.v])return;V[i.dataset.v][i.dataset.f]=i.value.trim();saveVends(V);toast('Vendor details saved.')});
 let rereadArmed=null;
-$('#vendTable').addEventListener('click',e=>{const b=e.target.closest('[data-reread]');if(!b)return;const n=b.dataset.reread;
+$('#vendTable').addEventListener('click',e=>{
+  const rm=e.target.closest('[data-remove]');
+  if(rm){const n=rm.dataset.remove;if(removeArmed!==n){removeArmed=n;rm.textContent='Tap again to remove';setTimeout(()=>{if(removeArmed===n){removeArmed=null;renderVendors()}},4000);return}
+    const V=vends();delete V[n];saveVends(V);removeArmed=null;renderVendors();toast(`${n} removed from vendors. Their catalogues stay.`);return}
+  const b=e.target.closest('[data-reread]');if(!b)return;const n=b.dataset.reread;
   if(rereadArmed!==n){rereadArmed=n;b.textContent='Tap again to confirm';setTimeout(()=>{if(rereadArmed===n){rereadArmed=null;renderVendors()}},4000);return}
   const V=vends();if(V[n]){delete V[n].lastTs;delete V[n].lastDate;saveVends(V)}rereadArmed=null;renderVendors();
   toast(`Next import of ${n} will read all their messages again. Ones already posted or skipped stay hidden.`)});
@@ -724,7 +761,7 @@ async function openBatch(b){
   $('#h-in').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
 }
 async function importFiles(files){
-  const st=$('#impStatus'); let chat=''; const loose=[];
+  showTab('make'); const st=$('#impStatus'); let chat=''; const loose=[];
   try{
     for(const f of files){
       if(/\.zip$/i.test(f.name)||/zip/i.test(f.type)){
@@ -977,6 +1014,14 @@ $('#next').onclick=()=>{
 };
 $('#copyCsv').onclick=()=>{const h=hist();const rows=[['Code','Date','Supplier','Type','Fabric','Supplier Rate','Selling Rate'],...h.map(r=>[r.code,r.date,r.supplier,r.type,r.fabric,r.sRate,r.price])];
   copyText(rows.map(r=>r.map(c=>(c||'').toString().replace(/\t/g,' ')).join('\t')).join('\n'),'Copied. Paste into the first cell of a Google Sheet.')};
+/* ---------- tabs ---------- */
+function showTab(t){
+  document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+  document.querySelectorAll('[data-in]').forEach(el=>el.classList.toggle('shown',el.dataset.in===t));
+  try{localStorage.setItem('kpm_tab',t)}catch(e){}
+}
+document.querySelector('.tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){showTab(b.dataset.tab);if(b.dataset.tab==='vendors')renderVendors()}};
+(function(){let t='make';try{t=localStorage.getItem('kpm_tab')||'make'}catch(e){}showTab(['make','vendors','posted','settings'].includes(t)?t:'make')})();
 let clr=false;$('#clearHist').onclick=()=>{if(!clr){clr=true;$('#clearConfirm').hidden=false;setTimeout(()=>{clr=false;$('#clearConfirm').hidden=true},4000);return}
   store.set('history',[]);idb.clear().catch(()=>{});clr=false;$('#clearConfirm').hidden=true;renderHist()};
 $('#saveSet').onclick=()=>{saveSettings();$('#margin').value=S.margin;analyse();toast('Settings saved on this device.')};
