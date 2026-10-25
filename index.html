@@ -691,7 +691,8 @@ async function importFiles(files){
   try{
     for(const f of files){
       if(/\.zip$/i.test(f.name)||/zip/i.test(f.type)){
-        if(!window.JSZip){st.textContent='The zip reader did not load. Check your internet connection and reload the page.';return}
+        if(!window.JSZip){st.textContent='Loading the zip reader...';try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js')}catch(e){try{await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')}catch(e2){}}}
+        if(!window.JSZip){st.textContent='The zip reader could not load here. Open the app at vbmaheshwari.github.io/kurti-posts and try again.';return}
         st.textContent='Opening '+f.name+'...';
         const z=await JSZip.loadAsync(f);
         for(const [n,e] of Object.entries(z.files)){if(e.dir)continue;const base=n.split('/').pop();
