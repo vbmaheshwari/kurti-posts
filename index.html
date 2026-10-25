@@ -99,6 +99,8 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-
 th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .tag{font-size:.75rem;font-weight:600;color:var(--madder);background:var(--madder-soft);padding:1px 8px;border-radius:999px}
 .importer{margin-bottom:20px}
+#vendTable input{min-width:130px;padding:4px 8px}
+#vendTable td{vertical-align:middle}
 .teach{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:8px}
 .teach button{font-size:.9rem;padding:6px 10px}
 .sendsteps{background:var(--indigo-soft);border-radius:8px;padding:12px 14px;font-size:.95rem}
@@ -264,6 +266,14 @@ th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
         <button id="clearHist" style="flex:0 0 auto">Clear list</button>
       </div>
       <p class="note" id="clearConfirm" hidden>Press "Clear list" again to confirm.</p>
+    </div>
+  </details>
+
+  <details id="vendBox">
+    <summary>Vendors <span id="vendCount" class="mono"></span></summary>
+    <div class="inner">
+      <p class="note">Every vendor you import is saved here. The app remembers the last message it read from each vendor, so the next import only picks up their newer messages and photos. Their number and area also go into your Excel.</p>
+      <div class="tablewrap"><table id="vendTable"><thead><tr><th>Vendor</th><th>WhatsApp number</th><th>Area / city</th><th>Notes</th><th>Read up to</th><th>New</th><th>Posted</th><th></th></tr></thead><tbody></tbody></table></div>
     </div>
   </details>
 
@@ -594,7 +604,7 @@ function logPosted(){
   h.push({code:lockedCode,date:new Date().toLocaleDateString('en-IN'),supplier:$('#supplier').value,type:F.type,fabric:F.fabric,work:F.work,sizes:F.sizes,colours:F.colours,moq:F.moq,sRate:$('#sRate').value,price:$('#price').value,photos:sel.length});
   store.set('history',h); posted=true; renderHist();
   const c=lockedCode;
-  (async()=>{try{const th=[];for(const p of sel.slice(0,6)){try{th.push(await thumbOf(p))}catch(e){}}await idb.put(c,th)}catch(e){}})();
+  (async()=>{try{const th=[];for(const p of sel.slice(0,40)){try{th.push(await thumbOf(p))}catch(e){}}await idb.put(c,th)}catch(e){}})();
   if(current)setStatus(current.key,'posted');
 }
 
@@ -603,6 +613,29 @@ function lib(){return store.get('library',{})}
 function saveLib(L){const ks=Object.keys(L);if(ks.length>4000){ks.sort((a,b)=>(L[a].added||0)-(L[b].added||0)).slice(0,ks.length-4000).forEach(k=>delete L[k])}store.set('library',L)}
 function setStatus(key,st){const L=lib();if(L[key]){L[key].status=st;if(st!=='new'&&L[key].saved){forgetMedia(L[key]);L[key].saved=false}saveLib(L)}renderBatches()}
 (function migrate(){const old=store.get('done',null);if(!old)return;const L=lib();old.forEach(k=>{if(L[k])L[k].status='posted'});saveLib(L)})();
+
+/* ---------- vendor book ---------- */
+function vends(){return store.get('vendors',{})}
+function saveVends(V){store.set('vendors',V)}
+function renderVendors(){
+  const V=vends(), names=Object.keys(V).sort((a,b)=>a.localeCompare(b)); const L=Object.values(lib());
+  $('#vendCount').textContent=names.length?`(${names.length})`:'';
+  $('#vendTable tbody').innerHTML=names.length?names.map(n=>{const v=V[n], mine=L.filter(x=>x.who===n);
+    const nw=mine.filter(x=>(x.status||'new')==='new'&&(x.media.length||x.hasRate)).length, po=mine.filter(x=>x.status==='posted').length;
+    return `<tr><td><b>${htmlEsc(n)}</b></td>
+      <td><input data-v="${htmlEsc(n)}" data-f="phone" value="${htmlEsc(v.phone||'')}" inputmode="tel" placeholder="+91..." aria-label="WhatsApp number for ${htmlEsc(n)}"></td>
+      <td><input data-v="${htmlEsc(n)}" data-f="area" value="${htmlEsc(v.area||'')}" placeholder="e.g. Sanganer" aria-label="Area for ${htmlEsc(n)}"></td>
+      <td><input data-v="${htmlEsc(n)}" data-f="notes" value="${htmlEsc(v.notes||'')}" placeholder="MOQ, payment terms..." aria-label="Notes for ${htmlEsc(n)}"></td>
+      <td class="mono">${htmlEsc(v.lastDate||'-')}</td><td>${nw}</td><td>${po}</td>
+      <td><button type="button" class="mini" data-reread="${htmlEsc(n)}">Read all again</button></td></tr>`}).join(''):
+    '<tr><td colspan="8" style="color:var(--muted);white-space:normal">Vendors appear here automatically after you import their chat.</td></tr>';
+}
+$('#vendTable').addEventListener('change',e=>{const i=e.target.closest('input[data-v]');if(!i)return;const V=vends();if(!V[i.dataset.v])return;V[i.dataset.v][i.dataset.f]=i.value.trim();saveVends(V);toast('Vendor details saved.')});
+let rereadArmed=null;
+$('#vendTable').addEventListener('click',e=>{const b=e.target.closest('[data-reread]');if(!b)return;const n=b.dataset.reread;
+  if(rereadArmed!==n){rereadArmed=n;b.textContent='Tap again to confirm';setTimeout(()=>{if(rereadArmed===n){rereadArmed=null;renderVendors()}},4000);return}
+  const V=vends();if(V[n]){delete V[n].lastTs;delete V[n].lastDate;saveVends(V)}rereadArmed=null;renderVendors();
+  toast(`Next import of ${n} will read all their messages again. Ones already posted or skipped stay hidden.`)});
 
 /* ---------- WhatsApp chat import ---------- */
 let media=new Map(), allBatches=[], current=null;
@@ -633,6 +666,10 @@ function parseChat(txt){
     b=b.replace(/<this message was edited>|this message was deleted|you deleted this message/gi,'');
     m.media=m.media.filter(isMedia); m.body=b.trim();
   }
+  const parts=msgs.map(m=>m.date.split(/[\/.\-]/).map(Number));
+  const dayFirst=parts.some(x=>x[0]>12)?true:parts.some(x=>x[1]>12)?false:true;
+  msgs.forEach((m,i)=>{const x=parts[i];let d=dayFirst?x[0]:x[1],mo=dayFirst?x[1]:x[0],y=x[2]<100?2000+x[2]:x[2];
+    m.ts=Math.round(Date.UTC(y,mo-1,d)/60000)+m.mins});
   return msgs;
 }
 function groupMsgs(msgs){
@@ -644,7 +681,7 @@ function groupMsgs(msgs){
   return out.map(b=>{
     const text=b.list.map(x=>x.body).filter(Boolean).join('\n');
     const med=b.list.flatMap(x=>x.media);
-    return{who:b.who,date:b.date,time:b.time,text,media:med,omitted:b.list.some(x=>x.omitted),
+    return{who:b.who,date:b.date,time:b.time,ts:b.list[0].ts,lastTs:b.list[b.list.length-1].ts,text,media:med,omitted:b.list.some(x=>x.omitted),
       hasRate:read(text).rates.length>0,key:[b.who,b.date,b.time,text.slice(0,40),med.length].join('|')};
   });
 }
@@ -704,17 +741,21 @@ async function importFiles(files){
   if(chat.trim()){
     const found=groupMsgs(parseChat(chat)); const L=lib(); let added=0, known=0; const now=Date.now();
     let order=Object.values(L).reduce((m,v)=>Math.max(m,v.order||0),0);
+    const V=vends(), before={}; found.forEach(b=>{if(!V[b.who])V[b.who]={phone:'',area:'',notes:'',added:now};before[b.who]=V[b.who].lastTs||0});
     for(const b of found){
+      if(before[b.who]&&b.ts<=before[b.who]){if(b.media.length||b.hasRate)known++;continue}
       if(L[b.key]){known++;continue}
-      L[b.key]={who:b.who,date:b.date,time:b.time,text:b.text.slice(0,2000),media:b.media,omitted:b.omitted,hasRate:b.hasRate,status:'new',added:now,order:++order};
+      L[b.key]={who:b.who,date:b.date,time:b.time,ts:b.ts,text:b.text.slice(0,2000),media:b.media,omitted:b.omitted,hasRate:b.hasRate,status:'new',added:now,order:++order};
       if(b.media.length||b.hasRate)added++;
     }
+    found.forEach(b=>{const v=V[b.who];if((b.lastTs||0)>(v.lastTs||0)){v.lastTs=b.lastTs;v.lastDate=b.date+' '+b.time}});
+    saveVends(V); renderVendors();
     saveLib(L); current=null; $('#statusView').value='new'; renderBatches();
     const fresh=found.filter(b=>L[b.key]&&L[b.key].added===now&&b.media.length);
     if(fresh.length){st.textContent='Saving photos inside the app...';let n=0;
       for(const b of fresh){n+=await keepMedia(b.media);const L2=lib();if(L2[b.key]){L2[b.key].saved=true;saveLib(L2)}}
       renderBatches();}
-    st.textContent=added?`${added} new catalogue${added>1?'s':''} added. ${known} already seen before ${known===1?'was':'were'} left out.`:`No new catalogues. All ${known} were already seen before.`;
+    st.textContent=added?`${added} new catalogue${added>1?'s':''} added. ${known} older ${known===1?'one was':'ones were'} left out.`:`No new catalogues. ${known} older ${known===1?'one was':'ones were'} left out.`;
     return 'chat';
   }else if(loose.length){
     clearPhotos(); posted=false; lockedCode=null; current=null;
@@ -750,20 +791,25 @@ $('#xlsx').onclick=async()=>{
   try{
     if(!window.ExcelJS)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     const wb=new ExcelJS.Workbook(); const ws=wb.addWorksheet('Posted designs');
-    const cols=[['Code',11],['Date',12],['Supplier',20],['Type',24],['Fabric',18],['Print / work',20],['Sizes',18],['Colours',8],['MOQ',16],['Supplier ₹',11],['Selling ₹',11],['Margin ₹',10]];
-    const PH=4; ws.columns=[...cols.map(([header,width])=>({header,width})),...Array.from({length:PH},(_,i)=>({header:'Photo '+(i+1),width:16}))];
+    const V=vends(); const thumbs=[]; for(const d of h){let t=[];try{t=(await idb.get(d.code))||[]}catch(e){}thumbs.push(t)}
+    const cols=[['Code',11],['Date',12],['Supplier',20],['Vendor number',16],['Area',14],['Type',24],['Fabric',18],['Print / work',20],['Sizes',18],['Colours',8],['MOQ',16],['Supplier ₹',11],['Selling ₹',11],['Margin ₹',10]];
+    const PH=Math.max(1,...thumbs.map(t=>t.length)); ws.columns=[...cols.map(([header,width])=>({header,width})),...Array.from({length:PH},(_,i)=>({header:'Photo '+(i+1),width:16}))];
     const head=ws.getRow(1); head.font={bold:true,color:{argb:'FFFFFFFF'}}; head.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF2D3E9C'}}; head.height=22; head.alignment={vertical:'middle'};
     ws.views=[{state:'frozen',ySplit:1}];
     for(let r=0;r<h.length;r++){
       const d=h[r]; const sr=+d.sRate||null, pr=+d.price||null;
-      const row=ws.addRow([d.code,d.date,d.supplier||'',d.type||'',d.fabric||'',d.work||'',d.sizes||'',d.colours||'',d.moq||'',sr,pr,(sr&&pr)?pr-sr:null]);
+      const vd=V[d.supplier]||{};
+      const row=ws.addRow([d.code,d.date,d.supplier||'',vd.phone||'',vd.area||'',d.type||'',d.fabric||'',d.work||'',d.sizes||'',d.colours||'',d.moq||'',sr,pr,(sr&&pr)?pr-sr:null]);
       row.alignment={vertical:'middle',wrapText:true};
-      let th=[]; try{th=(await idb.get(d.code))||[]}catch(e){}
+      const th=thumbs[r];
       if(th.length){row.height=96;
         th.slice(0,PH).forEach((t,i)=>{const id=wb.addImage({base64:t.data,extension:'jpeg'});
           const k=Math.min(112/Math.max(1,t.w),120/Math.max(1,t.h)); ws.addImage(id,{tl:{col:cols.length+i+0.05,row:r+1+0.05},ext:{width:Math.round(t.w*k),height:Math.round(t.h*k)}})});}
     }
-    ['J','K','L'].forEach(c=>ws.getColumn(c).numFmt='"₹"#,##0');
+    [12,13,14].forEach(c=>ws.getColumn(c).numFmt='"₹"#,##0');
+    const vs=wb.addWorksheet('Vendors'); vs.columns=[['Vendor',24],['WhatsApp number',18],['Area / city',18],['Notes',36],['Read up to',18],['Designs posted',14]].map(([header,width])=>({header,width}));
+    const vh=vs.getRow(1); vh.font={bold:true,color:{argb:'FFFFFFFF'}}; vh.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF2D3E9C'}};
+    Object.keys(V).sort().forEach(n=>{const v=V[n];vs.addRow([n,v.phone||'',v.area||'',v.notes||'',v.lastDate||'',h.filter(d=>d.supplier===n).length])});
     const buf=await wb.xlsx.writeBuffer();
     const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     const a=document.createElement('a');a.href=url;a.download=`Kurti posts ${new Date().toISOString().slice(0,10)}.xlsx`;document.body.appendChild(a);a.click();a.remove();
@@ -837,8 +883,8 @@ function renderGroups(disabled){
 }
 function savePhotos(){
   const sel=photos.filter(p=>p.on); const c=code();
-  sel.forEach((p,i)=>{const ext=(p.name&&p.name.includes('.'))?p.name.split('.').pop():(p.type==='video'?'mp4':'jpg');
-    const a=document.createElement('a');a.href=p.url;a.download=`${c}-${i+1}.${ext}`;document.body.appendChild(a);a.click();a.remove()});
+  sel.forEach((p,i)=>setTimeout(()=>{const ext=p.type==='video'?((p.name&&p.name.includes('.'))?p.name.split('.').pop():'mp4'):'jpg';
+    const a=document.createElement('a');a.href=p.url;a.download=`${c}-${i+1}.${ext}`;document.body.appendChild(a);a.click();a.remove()},i*500));
   savedFor=c; return sel.length;
 }
 function openLink(url){
@@ -859,7 +905,7 @@ $('#groupBtns').onclick=async e=>{
     ${canFileShare&&n?'<p class="note" style="margin-top:6px">Faster: use <b>Share to WhatsApp</b> above. It sends the photos separately with the post as caption in one go, no pasting.</p>':''}
     ${g.code?'':'<p class="note" style="margin-top:6px">This group has no invite link in Settings, so WhatsApp opens without the group. Add the link to jump straight to it.</p>'}`;
 };
-$('#savePics').onclick=()=>{const n=savePhotos();toast(`${n} saved to Downloads as ${code()}-1, ${code()}-2...`)};
+$('#savePics').onclick=()=>{const n=savePhotos();toast(`Saving ${n} photo${n>1?'s':''} to Downloads as ${code()}-1, ${code()}-2... If Chrome asks to download multiple files, click Allow.`)};
 
 /* ---------- phone: share photos + post into WhatsApp ---------- */
 const canFileShare=(()=>{try{return !!(navigator.canShare&&navigator.canShare({files:[new File(['x'],'x.jpg',{type:'image/jpeg'})]}))}catch(e){return false}})();
@@ -937,7 +983,7 @@ $('#saveSet').onclick=()=>{saveSettings();$('#margin').value=S.margin;analyse();
 $('#resetSet').onclick=()=>{const c=S.counter;S=Object.assign({},DEF,{counter:c});store.set('settings',S);loadSettingsUI();analyse();toast('Defaults restored. Your code number was kept.')};
 
 /* ---------- start ---------- */
-loadSettingsUI(); $('#msg').value=SAMPLE; analyse(); renderPhotos(); renderHist(); renderBatches(); receiveShared().catch(e=>toast('Could not open what was shared: '+e.message));
+loadSettingsUI(); $('#msg').value=SAMPLE; analyse(); renderPhotos(); renderHist(); renderBatches(); renderVendors(); receiveShared().catch(e=>toast('Could not open what was shared: '+e.message));
 </script>
 </body>
 </html>
